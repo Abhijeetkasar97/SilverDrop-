@@ -11,7 +11,9 @@ const sessionSchema = new mongoose.Schema(
     date: Date,
     duration: Number,
     ratePerHour: Number,
-    status: { type: String, default: "Pending" }
+    status: { type: String,
+        enum: ['pending', 'approved'],
+        default: 'pending' }
   },
   { timestamps: true }
 );

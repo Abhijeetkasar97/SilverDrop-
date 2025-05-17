@@ -1,5 +1,5 @@
 const express = require("express");
-const { addSession, generateReceipt } = require("../controllers/adminController");
+const {addSession, approveSession, generateReceipt } = require("../controllers/adminController");
 const { protect, adminOnly } = require("../middleware/auth");
 const User = require("../models/User");
 const { sendReceiptEmail } = require("../utils/emailService");
@@ -8,6 +8,7 @@ const Session = require("../models/Session");
 const router = express.Router();
 
 router.use(protect, adminOnly); 
+router.post("/approve-session", approveSession);
 
 router.post("/add-session", addSession);
 // router.get("/get-session",gets)
@@ -30,5 +31,10 @@ router.get("/mentors",async(req,res)=>{
   const mentors = await User.find({role:"mentor"})
   res.json(mentors)
 })
+router.get("/approved-sessions", async (req, res) => {
+  const sessions = await Session.find({ status: "Approved" }).populate("mentor", "name email");
+  res.json(sessions);
+});
+
 
 module.exports = router;

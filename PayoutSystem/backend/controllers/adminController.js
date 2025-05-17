@@ -2,9 +2,35 @@ const Session = require("../models/Session");
 const Receipt = require("../models/Receipt");
 
 exports.addSession = async (req, res) => {
-  const session = await Session.create(req.body);
+  const sessionData = {
+    ...req.body,
+    status: "Pending" // default status
+  };
+  const session = await Session.create(sessionData);
   res.json(session);
 };
+
+exports.approveSession = async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+
+    // Find session with status Pending
+    const session = await Session.findOne({ _id: sessionId, status: "Pending" });
+    if (!session) {
+      return res.status(404).json({ error: "Session not found or already approved." });
+    }
+
+    // Update to Approved
+    session.status = "Approved";
+    await session.save();
+
+    res.json({ message: "Session approved", session });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
 exports.generateReceipt = async (req, res) => {
   try {
     const { sessionId, message } = req.body;
