@@ -149,7 +149,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="mentor">Mentor</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
+                      
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
