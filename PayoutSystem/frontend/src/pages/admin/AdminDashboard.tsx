@@ -14,12 +14,14 @@ import {
   UserIcon,
   FileTextIcon,
   MessageSquareIcon,
-  RefreshCcwIcon
+  RefreshCcwIcon,
+  PlusIcon
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/context/AuthContext";
 import ReceiptCard from "@/components/receipts/ReceiptCard";
 import { Button } from "@/components/ui/button";
+import Modal from "@/components/ui/Modal";
 
 const AdminDashboard = () => {
   const { toast } = useToast();
@@ -29,7 +31,10 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 🧠 Moved fetchData outside useEffect so we can call it from anywhere
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedSession, setSelectedSession] = useState("");
+  const [message, setMessage] = useState("");
+
   const fetchData = useCallback(async () => {
     if (!currentUser?.token) return;
 
@@ -68,21 +73,49 @@ const AdminDashboard = () => {
     }
   }, [currentUser, toast]);
 
-  // 🔁 Initial fetch
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // === STATS ===
-  const totalMentors = [...new Set(sessions.map((s) => s.mentor._id))].length;
-
+  const totalMentors = [...new Set(sessions.map((s) => s.mentor?._id))].length;
   const totalSessions = sessions.length;
   const totalPaid = receipts
     .filter((s) => s.status === "paid")
     .reduce((sum, s) => sum + (s.finalAmount || 0), 0);
   const totalPending = sessions
-    .filter((s) => (s.status==="pending" || s.status === "Pending"))
+    .filter((s) => s.status === "pending" || s.status === "Pending")
     .reduce((sum, s) => sum + (s.ratePerHour || 0), 0);
+
+  const handleSubmit = async () => {
+    if (!selectedSession) return;
+
+    try {
+      const res = await fetch("http://localhost:5000/api/admin/generate-receipt", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${currentUser.token}`
+        },
+        body: JSON.stringify({ sessionId: selectedSession, message })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || "Failed to generate receipt");
+
+      toast({ title: "Receipt Generated", description: "Success!" });
+      setIsModalOpen(false);
+      setSelectedSession("");
+      setMessage("");
+      fetchData();
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message,
+        variant: "destructive"
+      });
+    }
+  };
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -93,10 +126,16 @@ const AdminDashboard = () => {
             Manage mentor sessions, payouts, and communications
           </p>
         </div>
-        <Button onClick={fetchData} disabled={loading} variant="outline">
-          <RefreshCcwIcon className="w-4 h-4 mr-2" />
-          {loading ? "Refreshing..." : "Refresh"}
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setIsModalOpen(true)}>
+            <PlusIcon className="w-4 h-4 mr-2" />
+            Generate Receipt
+          </Button>
+          <Button onClick={fetchData} disabled={loading} variant="outline">
+            <RefreshCcwIcon className="w-4 h-4 mr-2" />
+            {loading ? "Refreshing..." : "Refresh"}
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -171,6 +210,45 @@ const AdminDashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Modal */}
+      <Modal open={isModalOpen} onClose={() => setIsModalOpen(false)} title="Generate Receipt">
+        <div className="space-y-4">
+          <label className="block text-sm font-medium text-gray-700">Select Session</label>
+          <select
+            id="session"
+            className="w-full border rounded p-2"
+            value={selectedSession}
+            onChange={(e) => setSelectedSession(e.target.value)}
+          >
+            <option value="">-- Select Session --</option>
+            {sessions
+              .filter((s) => s.status === "Pending" || s.status === "pending")
+              .map((s, index) => {
+                const label = `${s.sessionCode || `#${index + 1}`} | ${s.type} | ${s.mentor?.name || "N/A"} | ${new Date(s.date).toLocaleDateString()} | ${s.duration} mins`;
+                return (
+                  <option key={s._id} value={s._id}>
+                    {label}
+                  </option>
+                );
+              })}
+          </select>
+
+          <label className="block text-sm font-medium text-gray-700">Message</label>
+          <textarea
+            className="w-full border rounded p-2"
+            rows={3}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Optional message"
+          />
+
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleSubmit}>Generate</Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

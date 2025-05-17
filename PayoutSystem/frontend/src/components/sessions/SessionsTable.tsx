@@ -79,7 +79,7 @@ const SessionsTable: React.FC<SessionsTableProps> = ({ sessions, onSelectSession
                 }
               }}
             >
-              <td className="px-4 py-2">{session.mentor?.name ?? "Unknown"}</td>
+              <td className="px-4 py-2">{session.mentorName ?? "Unknown"}</td>
               <td className="px-4 py-2">{formatDate(session.date)}</td>
               <td className="px-4 py-2">{getSessionTypeLabel(session.type)}</td>
               <td className="px-4 py-2">{session.duration} mins</td>

@@ -47,6 +47,7 @@ const ReceiptCard: React.FC<ReceiptCardProps> = ({
     });
   };
 
+  console.log(receipt)
   const shortId = receipt._id?.slice(-6).toUpperCase();
 
   return (
@@ -65,13 +66,13 @@ const ReceiptCard: React.FC<ReceiptCardProps> = ({
         <div className="space-y-4">
           <div>
             <p className="text-sm font-medium">Mentor</p>
-            <p className="font-semibold">{mentorName}</p>
+            <p className="font-semibold">{receipt.mentorName}</p>
           </div>
 
           <div>
             <p className="text-sm font-medium">Sessions</p>
             <p className="font-semibold">
-              {receipt.sessions?.length ?? 0} sessions
+              1 session
             </p>
           </div>
 
