@@ -33,7 +33,7 @@ const ProtectedRoute = ({
   element: JSX.Element;
   requiredRole?: string;
 }) => {
-  const { currentUser, isLoading } = useAuth();
+  const { currentUser,isLoading } = useAuth();
   
   if (isLoading) {
     return <div>Loading...</div>;
@@ -87,6 +87,7 @@ const App = () => (
             <Route path="/mentor/sessions" element={<ProtectedRoute element={<MentorSessions />} requiredRole="mentor" />} />
             <Route path="/mentor/messages" element={<ProtectedRoute element={<MentorMessages />} requiredRole="mentor" />} />
             
+            {/* <Route path="/mentor/messages" element={<MentorMessages />} /> */}
             {/* Root redirect */}
             <Route path="/" element={<Navigate to="/login" />} />
             

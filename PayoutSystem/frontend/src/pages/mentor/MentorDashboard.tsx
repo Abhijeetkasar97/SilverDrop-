@@ -10,7 +10,7 @@ import SessionsTable from "../../components/sessions/SessionsTable";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
-
+ import jsPDF from "jspdf";
 const MentorDashboard = () => {
   const { currentUser } = useAuth();
   const { toast } = useToast();
@@ -100,34 +100,54 @@ const MentorDashboard = () => {
   };
 
   // Handle download + mark viewed
-  const handleDownload = async (receipt) => {
-    try {
-      downloadReceipt(receipt);
+ 
 
-      // Mark as viewed in backend
-      const res = await fetch(
-        `http://localhost:5000/api/mentors/receipts/${receipt._id}/viewed`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${currentUser.token}` },
-        }
-      );
+const handleDownload = async (receipt) => {
+  try {
+    const doc = new jsPDF();
 
-      if (!res.ok) throw new Error("Failed to mark receipt as viewed");
+    doc.setFontSize(16);
+    doc.text("Mentor Receipt", 20, 20);
+    doc.setFontSize(12);
 
-      // Remove from unviewed count and update local receipts state
-      setUnviewedCount((count) => Math.max(0, count - 1));
-      setReceipts((prev) =>
-        prev.map((r) => (r._id === receipt._id ? { ...r, isViewed: true } : r))
-      );
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: err.message || "Could not download receipt",
-        variant: "destructive",
-      });
-    }
-  };
+    doc.text(`Receipt ID: ${receipt._id}`, 20, 40);
+    doc.text(`Mentor: ${receipt.mentorName}`, 20, 50);
+    doc.text(`Status: ${receipt.status}`, 20, 60);
+    doc.text(`Amount: $${receipt.finalAmount.toFixed(2)}`, 20, 70);
+    doc.text(`Subtotal: $${receipt.subtotal}`, 20, 80);
+    doc.text(`Tax: $${receipt.tax}`, 20, 90);
+    doc.text(`Deductions: $${receipt.deductions}`, 20, 100);
+    doc.text(`Message: ${receipt.message || "—"}`, 20, 110);
+
+    doc.text(
+      `Generated on: ${new Date(receipt.createdAt).toLocaleString()}`,
+      20,
+      130
+    );
+
+    doc.save(`receipt_${receipt._id}.pdf`);
+
+    // ✅ Mark as viewed in backend
+    await fetch(
+      `http://localhost:5000/api/mentors/receipts/${receipt._id}/viewed`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${currentUser.token}` },
+      }
+    );
+
+    setUnviewedCount((c) => Math.max(0, c - 1));
+    setReceipts((prev) =>
+      prev.map((r) => (r._id === receipt._id ? { ...r, isViewed: true } : r))
+    );
+  } catch (err) {
+    toast({
+      title: "Error",
+      description: err.message || "Could not download receipt",
+      variant: "destructive",
+    });
+  }
+};
 
   return (
     <div className="space-y-8 animate-fade-in">

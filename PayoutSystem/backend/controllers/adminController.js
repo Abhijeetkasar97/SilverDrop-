@@ -12,7 +12,6 @@ exports.generateReceipt = async (req, res) => {
 
     // Find session with status "Pending" and populate mentor name
     const session = await Session.findOne({ _id: sessionId, status: "Pending" }).populate("mentor", "name");
-    console.log(session)
     if (!session) {
       return res.status(404).json({ error: "Session not found or already paid." });
     }

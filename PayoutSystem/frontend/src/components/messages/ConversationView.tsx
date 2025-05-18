@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import { Message } from "../../types";
 import { Button } from "@/components/ui/button";
@@ -28,12 +27,10 @@ const ConversationView: React.FC<ConversationViewProps> = ({
       (msg.senderId === recipientId && msg.recipientId === currentUserId)
   );
 
-  // Sort messages by timestamp
   const sortedMessages = [...filteredMessages].sort(
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
   );
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [sortedMessages]);
@@ -54,15 +51,17 @@ const ConversationView: React.FC<ConversationViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full max-h-full">
+      {/* Header */}
       <div className="border-b px-4 py-3">
         <h3 className="font-semibold">{recipientName}</h3>
       </div>
-      
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {sortedMessages.map((message) => (
+
+      {/* Message List */}
+      <div className="flex-1 overflow-y-auto px-4 py-2 space-y-4">
+        {sortedMessages.map((message,i) => (
           <div
-            key={message.id}
+            key={i}
             className={`flex ${
               message.senderId === currentUserId ? "justify-end" : "justify-start"
             }`}
@@ -83,7 +82,8 @@ const ConversationView: React.FC<ConversationViewProps> = ({
         ))}
         <div ref={messagesEndRef} />
       </div>
-      
+
+      {/* Input */}
       <div className="border-t p-4">
         <form onSubmit={handleSubmit} className="flex gap-2">
           <Textarea

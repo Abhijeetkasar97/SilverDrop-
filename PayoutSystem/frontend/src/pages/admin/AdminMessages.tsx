@@ -1,31 +1,88 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { mockMessages, mockUsers } from "../../data/mockData";
 import MessageList from "../../components/messages/MessageList";
 import ConversationView from "../../components/messages/ConversationView";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { SearchIcon } from "lucide-react";
-import { Message } from "../../types";
+import { Message, User } from "../../types";
+import { useAuth } from "@/context/AuthContext";
 
 const AdminMessages = () => {
   const { toast } = useToast();
-  const [messages, setMessages] = useState<Message[]>(mockMessages);
-  const [selectedRecipientId, setSelectedRecipientId] = useState<string>("2"); // Default to first mentor
-  const [selectedRecipientName, setSelectedRecipientName] = useState<string>("John Doe");
-  const [searchQuery, setSearchQuery] = useState("");
+  const { currentUser } = useAuth();
+  const adminId = currentUser?._id || ""; // Use logged in admin's id
 
-  const adminId = "1"; // Admin user ID
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [mentors, setMentors] = useState<User[]>([]);
+  const [selectedRecipientId, setSelectedRecipientId] = useState<string | null>(null);
+  const [selectedRecipientName, setSelectedRecipientName] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  // Fetch mentors and messages on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch mentors
+        const usersRes = await fetch("http://localhost:5000/api/admin/mentors", {
+          method: "GET",
+          headers: { Authorization: `Bearer ${currentUser?.token}` },
+        });
+        if (!usersRes.ok) throw new Error("Failed to fetch mentors");
+        const usersData: User[] = await usersRes.json();
+        setMentors(usersData);
+
+        // Fetch messages
+        const messagesRes = await fetch("http://localhost:5000/api/messages", {
+          headers: { Authorization: `Bearer ${currentUser?.token}` },
+        });
+        if (!messagesRes.ok) throw new Error("Failed to fetch messages");
+        const messagesData: Message[] = await messagesRes.json();
+        setMessages(messagesData);
+
+        // Set default selected recipient as first mentor if available
+        if (usersData.length > 0) {
+          setSelectedRecipientId(usersData[0]._id || usersData[0].id); // depending on your schema
+          setSelectedRecipientName(usersData[0].name);
+        }
+      } catch (error: any) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (currentUser?.token) {
+      fetchData();
+    }
+  }, [currentUser, toast]);
+
+  // Filter mentors based on search query
+  const filteredMentors = mentors.filter(user =>
+    user.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Conversation messages between admin and selected mentor
+  const conversationMessages = messages.filter(
+    msg =>
+      selectedRecipientId &&
+      ((msg.senderId === adminId && msg.recipientId === selectedRecipientId) ||
+        (msg.senderId === selectedRecipientId && msg.recipientId === adminId))
+  );
 
   const handleSelectConversation = (userId: string, userName: string) => {
     setSelectedRecipientId(userId);
     setSelectedRecipientName(userName);
-    
-    // Mark messages as read
-    setMessages(prevMessages => 
-      prevMessages.map(msg => 
+
+    // Mark unread messages as read locally (optional)
+    setMessages(prevMessages =>
+      prevMessages.map(msg =>
         msg.senderId === userId && msg.recipientId === adminId && !msg.read
           ? { ...msg, read: true }
           : msg
@@ -33,29 +90,46 @@ const AdminMessages = () => {
     );
   };
 
-  const handleSendMessage = (content: string) => {
-    const newMessage: Message = {
-      id: `m${messages.length + 1}`,
-      senderId: adminId,
-      senderName: "Admin User",
-      recipientId: selectedRecipientId,
-      content,
-      timestamp: new Date().toISOString(),
-      read: true,
-    };
+  const handleSendMessage = async (content: string) => {
+    if (!content.trim() || !selectedRecipientId) return;
 
-    setMessages([...messages, newMessage]);
-    
-    toast({
-      title: "Message Sent",
-      description: `Your message to ${selectedRecipientName} has been sent.`,
-    });
+    try {
+      const res = await fetch("http://localhost:5000/api/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${currentUser?.token}`,
+        },
+        body: JSON.stringify({
+          content,
+          recipientId: selectedRecipientId,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to send message");
+
+      const newMessage: Message = await res.json();
+      setMessages(prev => [...prev, newMessage]);
+
+      toast({
+        title: "Message Sent",
+        description: `Your message to ${selectedRecipientName} has been sent.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
-  const filteredUsers = mockUsers.filter(user => 
-    user.role === "mentor" && 
-    (searchQuery === "" || user.name.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  if (loading) {
+    return <div>Loading messages...</div>;
+  }
+
+  if (!selectedRecipientId) {
+    return <div>No mentors found.</div>;
+  }
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -76,23 +150,25 @@ const AdminMessages = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="flex-1"
               />
-              <Button size="icon" variant="ghost">
+              <Button size="icon" variant="ghost" onClick={() => {}}>
                 <SearchIcon className="h-4 w-4" />
               </Button>
             </div>
-            
+
             <MessageList
               messages={messages}
+              users={filteredMentors}
               currentUserId={adminId}
               onSelectConversation={handleSelectConversation}
+              selectedUserId={selectedRecipientId}
             />
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 h-full overflow-hidden">
           <CardContent className="p-0 h-full">
             <ConversationView
-              messages={messages}
+              messages={conversationMessages}
               currentUserId={adminId}
               recipientId={selectedRecipientId}
               recipientName={selectedRecipientName}
